@@ -1,0 +1,13 @@
+aiogram>=3.22,<4
+apscheduler>=3.10,<4
+
+python-dotenv>=1.0,<2
+gspread>=6.0,<7
+google-auth>=2.20,<3
+openpyxl>=3.1,<4
+
+telethon>=1.36,<2
+
+# macOS + LibreSSL compatibility (prevents urllib3 OpenSSL warning/crashes)
+urllib3<2
+requests<2.32
