@@ -103,7 +103,7 @@ def load_settings() -> Settings:
         chat_healthcheck_batch_size=_to_int(os.getenv("CHAT_HEALTHCHECK_BATCH_SIZE"), 50),
 
         max_kicks_per_status_run=_to_int(os.getenv("MAX_KICKS_PER_STATUS_RUN"), 300),
-        deletion_log_retention_days=_to_int(os.getenv("DELETION_LOG_RETENTION_DAYS"), 15),
+        deletion_log_retention_days=_to_int(os.getenv("DELETION_LOG_RETENTION_DAYS"), 7),
         unknown_scan_interval_hours=_to_int(os.getenv("UNKNOWN_SCAN_INTERVAL_HOURS"), 72),
         unknown_user_retention_days=_to_int(os.getenv("UNKNOWN_USER_RETENTION_DAYS"), 7),
         unknown_alert_max_users_per_chat=_to_int(os.getenv("UNKNOWN_ALERT_MAX_USERS_PER_CHAT"), 20),
