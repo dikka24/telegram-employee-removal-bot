@@ -13,27 +13,27 @@ ts() {
 }
 
 result=$(docker compose exec -T bot sh -lc 'python - <<"PY"
+import json
 import os
-import urllib.error
 import urllib.request
 
 token = os.environ.get("BOT_TOKEN")
-url = f"https://api.telegram.org/bot{token}/getUpdates?timeout=10"
+if not token:
+    print("TOKEN_MISSING")
+    raise SystemExit
+
+url = f"https://api.telegram.org/bot{token}/getMe"
 
 try:
-    urllib.request.urlopen(url, timeout=15).read()
-    print("POLLING_NOT_HELD")
-except urllib.error.HTTPError as e:
-    if e.code == 409:
-        print("POLLING_HEALTHY")
-    else:
-        print(f"HTTP_ERROR_{e.code}")
+    with urllib.request.urlopen(url, timeout=15) as response:
+        payload = json.load(response)
+    print("BOT_HEALTHY" if payload.get("ok") else "API_NOT_OK")
 except Exception as e:
     print(f"CHECK_ERROR_{type(e).__name__}")
 PY')
 
 case "$result" in
-  *POLLING_HEALTHY*)
+  *BOT_HEALTHY*)
     echo 0 > "$FAIL_FILE"
     echo "$(ts) healthy result=$result" >> "$LOG_FILE"
     exit 0
@@ -53,7 +53,7 @@ echo "$fails" > "$FAIL_FILE"
 echo "$(ts) unhealthy fails=$fails result=$result" >> "$LOG_FILE"
 
 if [ "$fails" -ge "$MAX_FAILS" ]; then
-  echo "$(ts) restarting bot after $fails failed polling checks" >> "$LOG_FILE"
+  echo "$(ts) restarting bot after $fails failed health checks" >> "$LOG_FILE"
   docker compose restart bot >> "$LOG_FILE" 2>&1
   echo 0 > "$FAIL_FILE"
 fi
