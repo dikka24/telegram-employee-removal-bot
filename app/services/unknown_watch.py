@@ -84,7 +84,8 @@ def _alert_due(last_alerted_at: Optional[str], every_hours: int) -> bool:
 
 async def process_unknown_users_alerts(settings: Settings, repo: SheetRepo, db: LocalDB, bot) -> None:
     try:
-        employees = repo.get_employees(
+        employees = await repo.run_async(
+            repo.get_employees,
             settings.sheet_employees,
             settings.col_full_name,
             settings.col_email,
@@ -99,7 +100,8 @@ async def process_unknown_users_alerts(settings: Settings, repo: SheetRepo, db: 
     known_ids.update(int(admin_id) for admin_id in settings.admin_ids)
     try:
         known_ids.update(
-            repo.get_tg_ids_by_column_index(
+            await repo.run_async(
+                repo.get_tg_ids_by_column_index,
                 ws_name=DIYOR_SHEET_NAME,
                 col_index=DIYOR_TG_COLUMN_INDEX,
                 header_row=1,
@@ -107,7 +109,8 @@ async def process_unknown_users_alerts(settings: Settings, repo: SheetRepo, db: 
             )
         )
         # Warm the Registration telegram_id column cache once; per-user checks below reuse it.
-        repo.has_tg_in_sheet(
+        await repo.run_async(
+            repo.has_tg_in_sheet,
             ws_name=settings.sheet_registration,
             tg_id=0,
             col_name="telegram_id",
@@ -132,7 +135,8 @@ async def process_unknown_users_alerts(settings: Settings, repo: SheetRepo, db: 
             user_id = int(row["user_id"])
             if user_id in known_ids:
                 continue
-            if repo.has_tg_in_sheet(
+            if await repo.run_async(
+                repo.has_tg_in_sheet,
                 ws_name=settings.sheet_registration,
                 tg_id=user_id,
                 col_name="telegram_id",

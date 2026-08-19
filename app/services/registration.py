@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 from aiogram import F, Router
@@ -30,7 +31,8 @@ async def start(message: Message, state: FSMContext, settings: Settings, repo: S
         return
 
     try:
-        is_registered = repo.has_tg_in_sheet(
+        is_registered = await repo.run_async(
+            repo.has_tg_in_sheet,
             ws_name=settings.sheet_employees,
             tg_id=tg_id,
             col_name=settings.col_telegram_id,
@@ -68,7 +70,7 @@ async def process_email(message: Message, state: FSMContext, settings: Settings)
 
     otp = generate_otp()
     try:
-        send_otp_email(settings, email, otp)
+        await asyncio.to_thread(send_otp_email, settings, email, otp)
     except Exception as e:
         await state.clear()
         await message.answer(f"Не удалось отправить код. Ошибка: {type(e).__name__}")
@@ -114,7 +116,8 @@ async def process_otp(message: Message, state: FSMContext, settings: Settings, r
         return
 
     try:
-        repo.upsert_registration(
+        await repo.run_async(
+            repo.upsert_registration,
             ws_name=settings.sheet_registration,
             email=reg_email,
             telegram_id=message.from_user.id,

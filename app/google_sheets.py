@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import random
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,6 +28,7 @@ class SheetRepo:
     _ws_cache: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
     _header_cache: dict[str, dict[str, int]] = field(default_factory=dict, init=False, repr=False)
     _tg_column_cache: dict[tuple[str, str, int], tuple[float, set[int]]] = field(default_factory=dict, init=False, repr=False)
+    _io_lock: threading.RLock = field(default_factory=threading.RLock, init=False, repr=False)
 
     def __post_init__(self):
         self._sh = self.gc.open_by_key(self.sheet_id)
@@ -38,7 +41,18 @@ class SheetRepo:
         ]
         creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
         gc = gspread.authorize(creds)
+        # Bound every Google request so a stalled upstream cannot block a worker forever.
+        gc.http_client.timeout = (10, 30)
         return cls(gc=gc, sheet_id=sheet_id)
+
+    async def run_async(self, op: Callable[..., T], *args, **kwargs) -> T:
+        """Run a synchronous gspread operation away from the Telegram event loop."""
+
+        def _locked_call() -> T:
+            with self._io_lock:
+                return op(*args, **kwargs)
+
+        return await asyncio.to_thread(_locked_call)
 
     def _ws(self, worksheet_name: str):
         if worksheet_name in self._ws_cache:
@@ -66,7 +80,7 @@ class SheetRepo:
     def _with_retry(
         self,
         op: Callable[[], T],
-        retries: int = 5,
+        retries: int = 3,
         base_delay: float = 0.5,
         max_delay: float = 8.0,
     ) -> T:

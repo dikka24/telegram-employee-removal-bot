@@ -49,8 +49,9 @@ async def _try_kick(bot: Bot, chat_id: int, user_id: int) -> tuple[bool, str]:
         return True, f"unban_failed: {err}"
 
 
-def _employees(settings: Settings, repo: SheetRepo):
-    return repo.get_employees(
+async def _employees(settings: Settings, repo: SheetRepo):
+    return await repo.run_async(
+        repo.get_employees,
         settings.sheet_employees,
         settings.col_full_name,
         settings.col_email,
@@ -140,7 +141,7 @@ async def kick_user_from_indexed_chats(
 
 
 async def process_status_deletions(settings: Settings, repo: SheetRepo, db: LocalDB, bot: Bot) -> None:
-    employees = _employees(settings, repo)
+    employees = await _employees(settings, repo)
 
     delete_statuses = set(settings.delete_statuses)
     admin_ids = set(settings.admin_ids)
@@ -181,7 +182,8 @@ async def manual_delete_by_email(
 ) -> tuple[Optional[int], list[dict[str, Any]], str]:
     email_norm = _norm(email)
 
-    emp = repo.find_employee_by_email(
+    emp = await repo.run_async(
+        repo.find_employee_by_email,
         ws_name=settings.sheet_employees,
         col_full_name=settings.col_full_name,
         col_email=settings.col_email,

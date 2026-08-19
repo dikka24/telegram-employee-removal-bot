@@ -28,11 +28,11 @@ Telegram HR Access Bot автоматизирует контроль досту�
 | Telegram Bot API | Получение событий, отправка сообщений, удаление пользователей из групп |
 | Python / aiogram | Основная логика бота и обработчики команд |
 | APScheduler | Периодические задачи: удаление, healthcheck групп, алерты |
-| Google Sheets API | Чтение HR-таблиц и запись регистраций |
+| Google Sheets API | Чтение HR-таблиц и запись регистраций через worker thread с HTTP timeout |
 | SMTP | Отправка OTP-кода на корпоративную почту |
 | SQLite | Локальное хранение служебных данных бота |
 | Docker Compose | Запуск сервиса `bot` |
-| Cron watchdog | Безопасная проверка Telegram API через `getMe` и рестарт контейнера при сбое |
+| Cron watchdog | Проверка heartbeat и Telegram API через `getMe`, рестарт контейнера при зависании |
 
 Сервис запускается в Docker-контейнере командой `python -m app.main`.
 
@@ -320,11 +320,13 @@ Cron запускает `scripts/watchdog_polling.sh` каждые 5 минут.
 
 Flow:
 
-1. Скрипт вызывает безопасный Telegram-метод `getMe` из контейнера.
-2. Успешный ответ `ok=true` подтверждает доступность Telegram API и валидность токена.
-3. Проверка не вызывает `getUpdates`, не конфликтует с polling и не забирает пользовательские обновления.
-4. После 3 последовательных неуспешных проверок выполняется `docker compose restart bot`.
-5. Результаты пишутся в `data/watchdog_polling.log`.
+1. Event loop бота каждую минуту атомарно обновляет `data/bot_heartbeat`.
+2. Watchdog проверяет возраст heartbeat; если он старше 3 минут, контейнер перезапускается сразу.
+3. При свежем heartbeat скрипт вызывает безопасный Telegram-метод `getMe` из контейнера.
+4. Успешный ответ `ok=true` подтверждает доступность Telegram API и валидность токена.
+5. Проверка не вызывает `getUpdates`, не конфликтует с polling и не забирает пользовательские обновления.
+6. После 3 последовательных ошибок Telegram API выполняется `docker compose restart bot`.
+7. Результаты пишутся в `data/watchdog_polling.log`.
 
 ## 8. Расписания и лимиты production
 
@@ -360,7 +362,8 @@ Flow:
 - наблюдения неизвестных пользователей автоматически удаляются после retention-периода;
 - Google service account подключается из файла, примонтированного в контейнер read-only;
 - основной сервис запущен в Docker с `restart: unless-stopped`;
-- отдельный watchdog проверяет polling и перезапускает контейнер при сбое.
+- отдельный watchdog контролирует heartbeat event loop и Telegram API, перезапуская контейнер при зависании;
+- синхронные Google Sheets и SMTP-операции вынесены из Telegram event loop.
 
 ## 11. Логи и отчеты
 

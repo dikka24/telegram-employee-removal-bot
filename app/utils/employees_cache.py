@@ -40,7 +40,8 @@ class EmployeesCache:
         async with self._lock:
             if self._is_fresh():
                 return
-            employees = repo.get_employees(
+            employees = await repo.run_async(
+                repo.get_employees,
                 settings.sheet_employees,
                 settings.col_full_name,
                 settings.col_email,

@@ -42,6 +42,12 @@
 - `Employees` (`SHEET_EMPLOYEES`) — источник сотрудников/статусов/telegram_id;
 - `Registration` (`SHEET_REGISTRATION`) — фиксация успешной регистрации.
 
+Запросы Google Sheets выполняются в отдельном worker thread с HTTP timeout, поэтому задержка Google API не останавливает Telegram polling.
+
+## Watchdog
+
+Бот обновляет `data/bot_heartbeat` каждую минуту. Cron-скрипт `scripts/watchdog_polling.sh` проверяет heartbeat и Telegram `getMe` каждые 5 минут. При heartbeat старше 3 минут контейнер перезапускается сразу.
+
 ### Обязательные колонки `Employees`
 - `COL_FULL_NAME`
 - `COL_EMAIL`
